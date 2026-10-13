@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'">
+  <title>水滴搭子</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="../../node_modules/lucide/dist/umd/lucide.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <main class="app-window" aria-label="水滴搭子桌面宠物">
+    <header class="titlebar">
+      <span class="app-mark" aria-hidden="true"><i data-lucide="droplets"></i></span>
+      <span class="app-name">水滴搭子</span>
+      <div class="mode-switch" data-mode-switch role="group" aria-label="提醒模式">
+        <button type="button" data-mode="work" aria-pressed="true" title="工作版">工作</button>
+        <button type="button" data-mode="holiday" aria-pressed="false" title="假日版">假日</button>
+      </div>
+      <button class="icon-button" type="button" data-compact-window aria-label="切换到桌宠模式" title="桌宠模式">
+        <i data-lucide="minimize-2" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button" type="button" data-open-settings aria-label="打开喝水设置" title="喝水设置">
+        <i data-lucide="settings" aria-hidden="true"></i>
+      </button>
+      <button class="icon-button" type="button" data-hide-window aria-label="隐藏到系统托盘" title="隐藏到托盘">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    <aside class="pet-status-panel" data-pet-status aria-hidden="true" aria-live="polite">
+      <div class="pet-status-header">
+        <div class="pet-status-title">
+          <span>今日补水</span>
+          <strong><span data-pet-completed>0</span>/<span data-pet-total>8</span> 杯</strong>
+        </div>
+        <div class="pet-status-actions">
+          <button class="pet-panel-button" type="button" data-pet-drink aria-label="记录喝了一杯" title="记一杯">
+            <i data-lucide="glass-water" aria-hidden="true"></i>
+          </button>
+          <button class="pet-panel-button" type="button" data-expand-window aria-label="打开完整窗口" title="完整窗口">
+            <i data-lucide="maximize-2" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="energy-grid" data-energy-grid role="img" aria-label="今日饮水能量格"></div>
+      <div class="pet-status-footer">
+        <span data-pet-remaining>还要 8 杯</span>
+        <span class="period-status" data-period-status>准备第一杯</span>
+      </div>
+    </aside>
+
+    <section class="pet-zone" aria-label="桌面宠物">
+      <div class="speech-bubble" data-bubble aria-live="polite">正在准备今天的喝水计划...</div>
+      <button class="mascot-button" type="button" data-show-tip aria-label="查看补水小贴士" title="补水小贴士">
+        <svg class="mascot" data-mascot viewBox="0 0 32 36" shape-rendering="crispEdges" role="img" aria-label="像素水滴宠物举着一杯水">
+          <path class="mascot-arm" d="M7 18 H4 V20 H2 V25 H5 V23 H8 Z"></path>
+          <path class="mascot-arm" d="M24 16 H28 V18 H30 V21 H27 V20 H24 Z"></path>
+          <path class="mascot-body" d="M15 1 H17 V4 H19 V6 H21 V8 H23 V11 H25 V14 H27 V18 H29 V25 H27 V29 H24 V32 H20 V34 H12 V33 H8 V31 H6 V28 H4 V24 H3 V19 H5 V15 H7 V12 H9 V9 H11 V7 H13 V4 H15 Z"></path>
+          <path class="mascot-shine" d="M11 9 H14 V14 H13 V16 H10 V12 H11 Z"></path>
+          <rect class="mascot-eye" x="10" y="21" width="2" height="2"></rect>
+          <rect class="mascot-eye" x="20" y="21" width="2" height="2"></rect>
+          <path class="mascot-mouth" d="M12 26 H14 V27 H18 V26 H20 V28 H18 V29 H14 V28 H12 Z"></path>
+          <rect class="mascot-cheek" x="7" y="24" width="4" height="2"></rect>
+          <rect class="mascot-cheek" x="21" y="24" width="4" height="2"></rect>
+          <path class="mascot-glass" d="M24 9 H31 V22 H30 V24 H26 V23 H25 V13 H24 Z"></path>
+          <path class="mascot-glass-water" d="M26 16 H30 V21 H29 V23 H27 V22 H26 Z"></path>
+        </svg>
+        <span class="pet-shadow" aria-hidden="true"></span>
+      </button>
+    </section>
+
+    <section class="progress-band" aria-label="今日喝水进度">
+      <div class="progress-ring" data-progress-summary aria-label="今日完成 0%">
+        <svg viewBox="0 0 92 92" aria-hidden="true">
+          <circle class="ring-track" cx="46" cy="46" r="36"></circle>
+          <circle class="ring-value" data-ring cx="46" cy="46" r="36"></circle>
+        </svg>
+        <strong data-percent>0%</strong>
+      </div>
+      <div class="progress-copy">
+        <span>今日饮水</span>
+        <strong><span data-consumed>0</span> mL</strong>
+        <small>目标 <span data-target>2000</span> mL</small>
+      </div>
+      <button class="icon-button undo-button" type="button" data-undo aria-label="撤销上一杯" title="撤销上一杯">
+        <i data-lucide="undo-2" aria-hidden="true"></i>
+      </button>
+    </section>
+
+    <section class="schedule-band" aria-label="喝水记录">
+      <div class="section-heading">
+        <div class="schedule-view-tabs" role="tablist" aria-label="喝水记录视图">
+          <button type="button" role="tab" data-schedule-view="today" aria-selected="true">今日</button>
+          <button type="button" role="tab" data-schedule-view="month" aria-selected="false">月历</button>
+        </div>
+        <span data-plan-summary>加载中</span>
+        <div class="month-navigation is-hidden" data-month-navigation>
+          <button class="month-nav-button" type="button" data-month-shift="-1" aria-label="上一个月" title="上一个月">
+            <i data-lucide="chevron-left" aria-hidden="true"></i>
+          </button>
+          <strong data-month-label>2026年8月</strong>
+          <button class="month-nav-button" type="button" data-month-shift="1" aria-label="下一个月" title="下一个月">
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div data-today-view>
+        <div class="timeline" data-timeline></div>
+        <p class="remaining-copy" data-remaining></p>
+      </div>
+      <div class="month-view is-hidden" data-month-view>
+        <div class="month-weekdays" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="month-grid" data-month-grid role="grid" aria-label="每月饮水圆环记录"></div>
+        <p class="month-summary" data-month-summary></p>
+      </div>
+    </section>
+
+    <footer class="action-band">
+      <button class="primary-action" type="button" data-drink>
+        <i data-lucide="glass-water" aria-hidden="true"></i>
+        <span>喝了一杯 · <span data-cup>250</span> mL</span>
+      </button>
+    </footer>
+
+    <div class="settings-overlay" data-settings-overlay aria-hidden="true">
+      <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <header class="settings-header">
+          <h2 id="settings-title">喝水设置</h2>
+          <button class="icon-button" type="button" data-close-settings aria-label="关闭设置" title="关闭">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-content">
+          <div class="profile-editor-tabs" role="tablist" aria-label="编辑提醒方案">
+            <button type="button" role="tab" data-settings-mode="work" aria-selected="true">
+              <i data-lucide="briefcase-business" aria-hidden="true"></i>
+              工作版
+            </button>
+            <button type="button" role="tab" data-settings-mode="holiday" aria-selected="false">
+              <i data-lucide="sun" aria-hidden="true"></i>
+              假日版
+            </button>
+          </div>
+          <div class="form-group">
+            <div class="label-row">
+              <label for="target-input">推荐喝水量</label>
+              <span data-target-multiple>8 杯</span>
+            </div>
+            <div class="stepper">
+              <button type="button" data-target-step="-1" aria-label="减少一杯"><i data-lucide="minus" aria-hidden="true"></i></button>
+              <input id="target-input" data-target-input type="number" min="500" max="5000" step="250" value="2000" aria-label="每日推荐喝水量，毫升">
+              <button type="button" data-target-step="1" aria-label="增加一杯"><i data-lucide="plus" aria-hidden="true"></i></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="cup-input">单杯水量</label>
+              <span>100–1000 mL</span>
+            </div>
+            <div class="stepper">
+              <button type="button" data-cup-step="-1" aria-label="减少 50 毫升"><i data-lucide="minus" aria-hidden="true"></i></button>
+              <input id="cup-input" data-cup-input type="number" min="100" max="1000" step="50" value="250" aria-label="单杯水量，毫升">
+              <button type="button" data-cup-step="1" aria-label="增加 50 毫升"><i data-lucide="plus" aria-hidden="true"></i></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <span class="group-label">喝水时间</span>
+            <div class="time-inputs">
+              <input data-start-time type="time" value="08:00" aria-label="开始喝水时间">
+              <span>至</span>
+              <input data-end-time type="time" value="22:00" aria-label="结束喝水时间">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="pet-scale">桌宠大小</label>
+              <span data-pet-scale-value>100%</span>
+            </div>
+            <div class="range-control">
+              <i data-lucide="minimize-2" aria-hidden="true"></i>
+              <input id="pet-scale" data-pet-scale type="range" min="70" max="140" step="10" value="100" aria-label="桌宠大小百分比">
+              <i data-lucide="maximize-2" aria-hidden="true"></i>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="switch-row" for="rest-enabled">
+              <span>午休免打扰</span>
+              <input id="rest-enabled" data-rest-enabled type="checkbox" checked>
+            </label>
+            <div class="time-inputs">
+              <input data-rest-start type="time" value="12:30" aria-label="午休开始时间">
+              <span>至</span>
+              <input data-rest-end type="time" value="14:00" aria-label="午休结束时间">
+            </div>
+          </div>
+
+          <div class="form-group preference-list">
+            <label class="switch-row" for="always-on-top">
+              <span>完整窗口也置顶</span>
+              <input id="always-on-top" data-always-on-top type="checkbox" checked>
+            </label>
+            <label class="switch-row" for="launch-at-login">
+              <span>开机时自动启动</span>
+              <input id="launch-at-login" data-launch-at-login type="checkbox">
+            </label>
+          </div>
+
+          <div class="plan-preview" aria-live="polite">
+            <span class="preview-icon" aria-hidden="true"><i data-lucide="clock-3"></i></span>
+            <div>
+              <strong data-preview-title>8 杯 × 250 mL = 2000 mL</strong>
+              <span data-preview-detail>正在计算提醒时间</span>
+            </div>
+          </div>
+          <p class="form-error" data-form-error role="alert"></p>
+        </div>
+
+        <footer class="settings-actions">
+          <button class="secondary-action" type="button" data-cancel-settings>取消</button>
+          <button class="primary-action" type="button" data-save-settings>保存计划</button>
+        </footer>
+      </section>
+    </div>
+
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+  </main>
+</body>
+</html>

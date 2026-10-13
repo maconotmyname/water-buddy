@@ -1,0 +1,73 @@
+{
+  "name": "water-buddy-desktop",
+  "version": "1.0.0",
+  "description": "A resident desktop hydration pet with scheduled reminders.",
+  "main": "main.js",
+  "author": "byai",
+  "license": "MIT",
+  "homepage": "https://github.com/maconotmyname/water-buddy#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maconotmyname/water-buddy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maconotmyname/water-buddy/issues"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win --x64"
+  },
+  "dependencies": {
+    "lucide": "^0.468.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.byai.waterbuddy",
+    "productName": "水滴搭子",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "executableName": "WaterBuddy"
+    },
+    "nsis": {
+      "artifactName": "WaterBuddy-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "水滴搭子"
+    },
+    "portable": {
+      "artifactName": "WaterBuddy-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}
