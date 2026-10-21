@@ -607,11 +607,7 @@ function fireReminder(reminder) {
   }
 
   if (mainWindow && !mainWindow.isDestroyed()) {
-    if (!mainWindow.isVisible()) {
-      positionMainWindow();
-      mainWindow.showInactive();
-    }
-    mainWindow.flashFrame(true);
+    // Deliver the reminder without revealing, moving, or focusing the window.
     mainWindow.webContents.send('water-buddy:reminder', {
       time: currentReminder.time,
       amountMl: plan.cupMl,

@@ -660,6 +660,9 @@ function registerEvents() {
     petPeekOpen = false;
     render(await window.waterBuddy.windowAction('expand'));
   });
+  getElement('[data-hide-pet]').addEventListener('click', () => {
+    window.waterBuddy.windowAction('hide');
+  });
   getElement('[data-drink]').addEventListener('click', async () => {
     render(await window.waterBuddy.drink());
     animateMascot();

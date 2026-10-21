@@ -73,6 +73,24 @@ function getWindowBounds(electronApp) {
   return electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
 }
 
+async function getReminderWindowState(electronApp, window) {
+  const native = await electronApp.evaluate(({ BrowserWindow }) => {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    return {
+      visible: mainWindow.isVisible(),
+      minimized: mainWindow.isMinimized(),
+      focused: mainWindow.isFocused(),
+      alwaysOnTop: mainWindow.isAlwaysOnTop(),
+      bounds: mainWindow.getBounds()
+    };
+  });
+  const renderer = await window.evaluate(() => ({
+    compact: document.body.classList.contains('is-compact'),
+    peek: document.body.classList.contains('is-pet-peek')
+  }));
+  return { ...native, ...renderer };
+}
+
 async function waitUntil(check, description, timeout = 10_000) {
   const deadline = Date.now() + timeout;
   let lastError;
@@ -460,12 +478,79 @@ async function waitUntil(check, description, timeout = 10_000) {
   assert.equal(await window.locator('[data-period-status]').textContent(), '已记录 +1 杯');
   console.log('Smoke stage: next-day reset and pet drink passed');
 
-  await window.locator('[data-expand-window]').click();
-  await waitUntil(async () => (await window.locator('body.is-compact').count()) === 0, 'final expanded mode');
-  await stopApp(electronApp);
+  await window.locator('[data-hide-pet]').click();
+  await waitUntil(async () => {
+    return !(await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()));
+  }, 'compact pet hidden to tray');
+  assert.equal(
+    await electronApp.evaluate(({ app, BrowserWindow }) => app.isReady() && BrowserWindow.getAllWindows().length === 1),
+    true
+  );
+  console.log('Smoke stage: compact pet minimize-to-tray passed');
+
+  // Exercise real scheduled reminders; capture native notification requests without
+  // filling the user's Windows notification center with test messages.
+  await electronApp.evaluate(({ Notification }) => {
+    globalThis.smokeNotificationCount = 0;
+    Notification.prototype.show = function () {
+      globalThis.smokeNotificationCount += 1;
+    };
+  });
+  await window.evaluate(() => {
+    window.smokeReminders = [];
+    window.waterBuddy.onReminder((reminder) => window.smokeReminders.push(reminder));
+  });
+  try {
+    const cases = [
+      { label: 'hidden pet', visible: false, compact: true },
+      { label: 'hidden pet again', visible: false, compact: true },
+      { label: 'visible pet', visible: true, compact: true },
+      { label: 'visible full window', visible: true, compact: false },
+      { label: 'hidden full window', visible: false, compact: false }
+    ];
+    let delivered = 0;
+    for (const scenario of cases) {
+      if (!scenario.compact) await window.evaluate(() => window.waterBuddy.windowAction('expand'));
+      await electronApp.evaluate(({ BrowserWindow }, visible) => {
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        if (visible) mainWindow.showInactive();
+        else mainWindow.hide();
+      }, scenario.visible);
+      await window.waitForTimeout(400);
+
+      const model = await window.evaluate(() => window.waterBuddy.getModel());
+      const reminder = model.plan.reminders.find((item) =>
+        (item.index + 1) * model.plan.cupMl > model.daily.consumedMl &&
+        !model.daily.notifiedTimes.includes(item.time)
+      );
+      assert.ok(reminder, `No pending reminder for ${scenario.label}`);
+      const dueAt = new Date(nextDay.timestamp);
+      const [hour, minute] = reminder.time.split(':').map(Number);
+      dueAt.setHours(hour, minute, 0, 0);
+      await window.evaluate((timestamp) => window.waterBuddy.testSetNow(timestamp), dueAt.getTime());
+      const saved = await window.evaluate((settings) => window.waterBuddy.saveSettings(settings), model.settings);
+      assert.equal(saved.ok, true);
+      const before = await getReminderWindowState(electronApp, window);
+      assert.equal(before.visible, scenario.visible);
+      assert.equal(before.compact, scenario.compact);
+
+      delivered += 1;
+      await waitUntil(async () => (await window.evaluate(() => window.smokeReminders.length)) === delivered,
+        `scheduled reminder in ${scenario.label}`);
+      assert.deepEqual(await getReminderWindowState(electronApp, window), before,
+        `Reminder changed the window state in ${scenario.label}`);
+      const notifiedModel = await window.evaluate(() => window.waterBuddy.getModel());
+      assert.ok(notifiedModel.daily.notifiedTimes.includes(reminder.time));
+      assert.equal(await electronApp.evaluate(() => globalThis.smokeNotificationCount),
+        model.runtime.notificationSupported ? delivered : 0);
+      console.log(`Smoke stage: reminder preserves ${scenario.label}`);
+    }
+  } finally {
+    await stopApp(electronApp);
+  }
 
   if (errors.length) throw new Error(`Renderer errors: ${errors.join(' | ')}`);
-  console.log('Electron smoke test passed: scalable pet mode, hover status grid, dragging, reminders, and persistence.');
+  console.log('Electron smoke test passed: scalable pet mode, hover status grid, minimize-to-tray, dragging, reminders, and persistence.');
 })()
   .finally(() => {
     const tempRoot = path.resolve(os.tmpdir());

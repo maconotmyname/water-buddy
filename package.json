@@ -1,6 +1,6 @@
 {
   "name": "water-buddy-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A resident desktop hydration pet with scheduled reminders.",
   "main": "main.js",
   "author": "byai",
