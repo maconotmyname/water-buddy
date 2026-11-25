@@ -8,8 +8,8 @@
 
 前往 [Releases 下载页](../../releases/latest)，根据需要选择：
 
-- `WaterBuddy-Setup-1.0.1-x64.exe`：安装版，支持选择安装目录、桌面快捷方式和开始菜单快捷方式。
-- `WaterBuddy-Portable-1.0.1-x64.exe`：免安装版，下载后直接运行。
+- `WaterBuddy-Setup-1.0.2-x64.exe`：安装版，支持选择安装目录、桌面快捷方式和开始菜单快捷方式。
+- `WaterBuddy-Portable-1.0.2-x64.exe`：免安装版，下载后直接运行。
 
 目前提供 Windows x64 构建。发布包尚未配置商业代码签名证书，首次运行时 Windows SmartScreen 可能显示“未知发布者”。这是签名状态提示，不影响程序功能。
 
