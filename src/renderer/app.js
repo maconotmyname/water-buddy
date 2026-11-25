@@ -131,9 +131,9 @@ function setPetPeek(open) {
 
 function schedulePetPeekClose() {
   clearTimeout(petPeekCloseTimer);
-  if (petPeekPinned || petDrinkBusy) return;
+  if (petPeekPinned || petDrinkBusy || petDrag) return;
   petPeekCloseTimer = setTimeout(() => {
-    if (!petPeekPinned && !petDrinkBusy) setPetPeek(false);
+    if (!petPeekPinned && !petDrinkBusy && !petDrag) setPetPeek(false);
   }, 280);
 }
 
@@ -527,6 +527,7 @@ function normalizeCupInput() {
 
 function finishPetDrag(event) {
   if (!petDrag || event.pointerId !== petDrag.pointerId) return;
+  window.waterBuddy.moveWindow('end');
   suppressPetClick = petDrag.moved;
   petDrag = null;
   document.body.classList.remove('is-dragging-pet');
@@ -535,6 +536,7 @@ function finishPetDrag(event) {
   } catch {
     // Synthetic pointer events may not own capture.
   }
+  if (!event.currentTarget.matches(':hover')) schedulePetPeekClose();
 }
 
 function registerPetDrag(button) {
@@ -548,6 +550,8 @@ function registerPetDrag(button) {
       moved: false
     };
     suppressPetClick = false;
+    clearTimeout(petPeekCloseTimer);
+    window.waterBuddy.moveWindow('start');
     document.body.classList.add('is-dragging-pet');
     try {
       button.setPointerCapture(event.pointerId);
@@ -565,11 +569,12 @@ function registerPetDrag(button) {
     petDrag.lastY = event.screenY;
     petDrag.distance += Math.abs(deltaX) + Math.abs(deltaY);
     petDrag.moved ||= petDrag.distance >= 5;
-    if (deltaX || deltaY) window.waterBuddy.moveWindow({ deltaX, deltaY });
+    if (deltaX || deltaY) window.waterBuddy.moveWindow('move');
   });
 
   button.addEventListener('pointerup', finishPetDrag);
   button.addEventListener('pointercancel', finishPetDrag);
+  button.addEventListener('lostpointercapture', finishPetDrag);
 }
 
 function registerEvents() {

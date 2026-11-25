@@ -17,7 +17,7 @@ const MIN_TARGET_ML = 500;
 const MAX_TARGET_ML = 5000;
 const MIN_CUP_ML = 100;
 const MAX_CUP_ML = 1000;
-const MIN_PET_SCALE = 70;
+const MIN_PET_SCALE = 30;
 const MAX_PET_SCALE = 140;
 const PET_SCALE_STEP = 10;
 

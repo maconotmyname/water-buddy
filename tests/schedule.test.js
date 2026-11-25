@@ -27,7 +27,10 @@ test('cup volume accepts a broad custom range and clamps extremes', () => {
 
 test('desktop pet scale is stepped and clamped', () => {
   assert.equal(normalizeSettings({ petScale: 126 }).petScale, 130);
-  assert.equal(normalizeSettings({ petScale: 20 }).petScale, 70);
+  assert.equal(normalizeSettings({ petScale: 20 }).petScale, 30);
+  for (const petScale of [30, 40, 50, 60, 70, 100, 140]) {
+    assert.equal(normalizeSettings({ petScale }).petScale, petScale);
+  }
   assert.equal(normalizeSettings({ petScale: 200 }).petScale, 140);
 });
 

@@ -15,7 +15,7 @@
   },
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/history.test.js tests/schedule.test.js",
+    "test": "node --test tests/history.test.js tests/schedule.test.js tests/window-position.test.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win --x64"
   },

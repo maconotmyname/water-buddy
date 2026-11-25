@@ -307,6 +307,7 @@ async function waitUntil(check, description, timeout = 10_000) {
   await window.locator('[data-end-time]').fill('21:00');
   await window.locator('[data-rest-start]').fill('12:00');
   await window.locator('[data-rest-end]').fill('14:00');
+  assert.equal(await window.locator('[data-pet-scale]').getAttribute('min'), '30');
   await window.locator('[data-pet-scale]').evaluate((input) => {
     input.value = '130';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -386,17 +387,42 @@ async function waitUntil(check, description, timeout = 10_000) {
   await waitUntil(async () => (await window.locator('body.is-pet-peek').count()) === 0, 'closed pet status');
   await window.waitForTimeout(150);
 
+  for (const [scale, width, height] of [[50, 75, 88], [30, 45, 60]]) {
+    const saved = await window.evaluate(async (petScale) => {
+      const current = await window.waterBuddy.getModel();
+      return window.waterBuddy.saveSettings({ ...current.settings, petScale });
+    }, scale);
+    assert.equal(saved.ok, true);
+    await waitUntil(async () => {
+      const bounds = await getWindowBounds(electronApp);
+      return Math.abs(bounds.width - width) <= 2 && Math.abs(bounds.height - height) <= 2;
+    }, `${scale}% compact window below 100px`);
+    const hitArea = await mascot.boundingBox();
+    assert.ok(Math.abs(hitArea.width - width) <= 2 && Math.abs(hitArea.height - Math.round(176 * scale / 100)) <= 2);
+  }
+  await window.screenshot({ path: path.join(artifactsDir, 'compact-small.png'), omitBackground: true });
+
   const beforeDrag = await getWindowBounds(electronApp);
+  await electronApp.evaluate(({ screen }, bounds) => {
+    globalThis.smokeOriginalCursor = screen.getCursorScreenPoint;
+    globalThis.smokeCursor = { x: bounds.x + 20, y: bounds.y + 20 };
+    screen.getCursorScreenPoint = () => ({ ...globalThis.smokeCursor });
+  }, beforeDrag);
   await mascot.dispatchEvent('pointerdown', {
-    pointerId: 1,
+    pointerId: 101,
     pointerType: 'mouse',
     button: 0,
     buttons: 1,
     screenX: 600,
     screenY: 500
   });
+  await window.evaluate(() => window.waterBuddy.getModel());
+  await electronApp.evaluate(() => {
+    globalThis.smokeCursor.x -= 36;
+    globalThis.smokeCursor.y -= 28;
+  });
   await mascot.dispatchEvent('pointermove', {
-    pointerId: 1,
+    pointerId: 101,
     pointerType: 'mouse',
     button: 0,
     buttons: 1,
@@ -404,7 +430,7 @@ async function waitUntil(check, description, timeout = 10_000) {
     screenY: 472
   });
   await mascot.dispatchEvent('pointerup', {
-    pointerId: 1,
+    pointerId: 101,
     pointerType: 'mouse',
     button: 0,
     buttons: 0,
@@ -415,8 +441,44 @@ async function waitUntil(check, description, timeout = 10_000) {
   const afterDrag = await getWindowBounds(electronApp);
   assert.ok(
     afterDrag.x !== beforeDrag.x || afterDrag.y !== beforeDrag.y,
-    'Dragging the compact pet did not move the window.'
+    `Dragging the compact pet did not move the window: ${JSON.stringify({ beforeDrag, afterDrag })}`
   );
+  try {
+    const displays = await electronApp.evaluate(({ screen }) => screen.getAllDisplays());
+    const originalDisplay = await electronApp.evaluate(({ screen }, bounds) => screen.getDisplayMatching(bounds), afterDrag);
+    const otherDisplay = displays.find(display => display.id !== originalDisplay.id);
+    if (otherDisplay) {
+      const destinations = [
+        { id: otherDisplay.id, point: { x: Math.round(otherDisplay.workArea.x + otherDisplay.workArea.width / 2), y: Math.round(otherDisplay.workArea.y + otherDisplay.workArea.height / 2) } },
+        { id: originalDisplay.id, point: { x: afterDrag.x + 20, y: afterDrag.y + 20 } }
+      ];
+      for (const destination of destinations) {
+        const start = await getWindowBounds(electronApp);
+        await electronApp.evaluate((_electron, bounds) => { globalThis.smokeCursor = { x: bounds.x + 20, y: bounds.y + 20 }; }, start);
+        await window.evaluate(() => { window.waterBuddy.moveWindow('start'); return window.waterBuddy.getModel(); });
+        await electronApp.evaluate((_electron, point) => { globalThis.smokeCursor = point; }, destination.point);
+        await window.evaluate(() => { window.waterBuddy.moveWindow('move'); return window.waterBuddy.getModel(); });
+        await waitUntil(async () => {
+          return (await electronApp.evaluate(({ screen, BrowserWindow }) => screen.getDisplayMatching(BrowserWindow.getAllWindows()[0].getBounds()).id)) === destination.id;
+        }, 'native window crosses onto destination display before release');
+        await window.evaluate(() => { window.waterBuddy.moveWindow('end'); return window.waterBuddy.getModel(); });
+        const dropped = await getWindowBounds(electronApp);
+        const area = displays.find(display => display.id === destination.id).workArea;
+        assert.ok(dropped.x >= area.x - 2 && dropped.y >= area.y - 2);
+        assert.ok(dropped.x + dropped.width <= area.x + area.width + 2);
+        assert.ok(dropped.y + dropped.height <= area.y + area.height + 2);
+      }
+      console.log(`Smoke stage: native cross-display movement passed (scale factors ${originalDisplay.scaleFactor}, ${otherDisplay.scaleFactor}; simulated cursor)`);
+    } else {
+      console.log('Smoke stage: one physical display; multi-display geometry is covered by unit tests');
+    }
+  } finally {
+    await electronApp.evaluate(({ screen }) => {
+      screen.getCursorScreenPoint = globalThis.smokeOriginalCursor;
+      delete globalThis.smokeOriginalCursor;
+      delete globalThis.smokeCursor;
+    });
+  }
   await mascot.dispatchEvent('click');
   assert.equal(await window.locator('body.is-compact').count(), 1);
   await mascot.click();
@@ -424,6 +486,15 @@ async function waitUntil(check, description, timeout = 10_000) {
   await mascot.dispatchEvent('pointerleave', { pointerId: 3, pointerType: 'mouse' });
   await window.waitForTimeout(400);
   assert.equal(await window.locator('body.is-pet-peek').count(), 1);
+  const smallPeekBounds = await getWindowBounds(electronApp);
+  assert.ok(Math.abs(smallPeekBounds.width - 244) <= 2);
+  assert.ok(Math.abs(smallPeekBounds.height - 164) <= 2);
+  const smallConsumed = (await window.evaluate(() => window.waterBuddy.getModel())).daily.consumedMl;
+  await window.locator('[data-pet-drink]').click();
+  await waitUntil(async () => (await window.evaluate(() => window.waterBuddy.getModel())).daily.consumedMl > smallConsumed,
+    'drink from 30% pet status');
+  await window.evaluate(() => window.waterBuddy.undoDrink());
+  await window.screenshot({ path: path.join(artifactsDir, 'compact-small-status.png'), omitBackground: true });
   await window.locator('[data-expand-window]').click();
   console.log('Smoke stage: drag and pinned status passed');
   await waitUntil(async () => (await window.locator('body.is-compact').count()) === 0, 'expanded mode');
@@ -446,8 +517,8 @@ async function waitUntil(check, description, timeout = 10_000) {
   console.log('Smoke stage: persisted compact restart');
   await waitUntil(async () => (await window.locator('body.is-compact').count()) === 1, 'restored compact mode');
   const restoredCompactBounds = await getWindowBounds(electronApp);
-  assert.ok(Math.abs(restoredCompactBounds.width - 195) <= 2);
-  assert.ok(Math.abs(restoredCompactBounds.height - 229) <= 2);
+  assert.ok(Math.abs(restoredCompactBounds.width - 45) <= 2);
+  assert.ok(Math.abs(restoredCompactBounds.height - 60) <= 2);
   assert.equal(
     await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isAlwaysOnTop()),
     true

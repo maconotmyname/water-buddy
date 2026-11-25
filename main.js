@@ -25,6 +25,7 @@ const {
   normalizeHistory,
   pruneHistory
 } = require('./src/shared/history');
+const { draggedWindowPosition, fitWindowToWorkArea } = require('./src/shared/window-position');
 
 const APP_ID = 'com.byai.waterbuddy';
 const PROFILE_MODES = new Set(['work', 'holiday']);
@@ -49,6 +50,7 @@ let maintenanceTimer = null;
 let dayRolloverTimer = null;
 let isQuitting = false;
 let petPeekOpen = false;
+let petWindowDrag = null;
 let store = null;
 let storePath = null;
 const initialTestNowMs = Number(process.env.WATER_BUDDY_TEST_NOW);
@@ -298,7 +300,9 @@ function compactWindowSize() {
   const scale = (store ? activeSettings().petScale : DEFAULT_SETTINGS.petScale) / 100;
   return {
     width: Math.round(COMPACT_WINDOW.width * scale),
-    height: Math.round(COMPACT_WINDOW.height * scale)
+    // Windows may enforce a 60 DIP window height; keep the smaller sprite
+    // bottom-aligned inside this transparent area.
+    height: Math.max(60, Math.round(COMPACT_WINDOW.height * scale))
   };
 }
 
@@ -312,20 +316,17 @@ function petPeekWindowSize() {
 
 function resizeMainWindow(target, compact, animate = false) {
   const previous = mainWindow.getBounds();
-  mainWindow.setMinimumSize(100, 100);
+  mainWindow.setMinimumSize(Math.min(100, target.width), Math.min(100, target.height));
   mainWindow.setMaximumSize(1000, 1000);
   mainWindow.setResizable(!compact);
   mainWindow.setSkipTaskbar(compact);
 
   const display = screen.getDisplayMatching(previous);
-  const minX = display.workArea.x;
-  const minY = display.workArea.y;
-  const maxX = Math.max(minX, display.workArea.x + display.workArea.width - target.width);
-  const maxY = Math.max(minY, display.workArea.y + display.workArea.height - target.height);
-  const desiredX = previous.x + previous.width - target.width;
-  const desiredY = previous.y + previous.height - target.height;
-  const x = Math.min(Math.max(desiredX, minX), maxX);
-  const y = Math.min(Math.max(desiredY, minY), maxY);
+  const { x, y } = fitWindowToWorkArea({
+    x: previous.x + previous.width - target.width,
+    y: previous.y + previous.height - target.height,
+    ...target
+  }, display.workArea);
   mainWindow.setBounds({ x, y, width: target.width, height: target.height }, animate);
   mainWindow.setMinimumSize(compact ? target.width : 330, compact ? target.height : 600);
   mainWindow.setMaximumSize(compact ? target.width : 420, compact ? target.height : 760);
@@ -356,6 +357,7 @@ function setActiveMode(mode) {
 }
 
 function setCompactMode(compact, persist = true) {
+  petWindowDrag = null;
   const nextCompact = Boolean(compact);
   store.ui.compact = nextCompact;
   petPeekOpen = false;
@@ -377,20 +379,24 @@ function setPetPeek(open) {
   resizeMainWindow(nextOpen ? petPeekWindowSize() : compactWindowSize(), true);
 }
 
-function moveMainWindow(deltaX, deltaY) {
+function moveMainWindow(phase) {
   if (!mainWindow || mainWindow.isDestroyed() || !store.ui.compact) return;
-  if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
-  const bounds = mainWindow.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const x = Math.min(
-    Math.max(bounds.x + Math.round(deltaX), display.workArea.x),
-    display.workArea.x + display.workArea.width - bounds.width
-  );
-  const y = Math.min(
-    Math.max(bounds.y + Math.round(deltaY), display.workArea.y),
-    display.workArea.y + display.workArea.height - bounds.height
-  );
-  mainWindow.setPosition(x, y, false);
+  if (phase === 'start') {
+    petWindowDrag = { bounds: mainWindow.getBounds(), cursor: screen.getCursorScreenPoint() };
+    return;
+  }
+  if (!petWindowDrag || (phase !== 'move' && phase !== 'end')) return;
+  // Electron supplies both window and cursor coordinates in DIP, including
+  // displays with negative origins or different scale factors.
+  const cursor = screen.getCursorScreenPoint();
+  let position = draggedWindowPosition(petWindowDrag.bounds, petWindowDrag.cursor, cursor);
+  if (phase === 'end') {
+    const display = screen.getDisplayNearestPoint(cursor);
+    position = fitWindowToWorkArea({ ...mainWindow.getBounds(), ...position }, display.workArea);
+    petWindowDrag = null;
+  }
+  // Do not clamp while dragging: the window must be able to straddle screens.
+  mainWindow.setPosition(position.x, position.y, false);
 }
 
 function showMainWindow(openSettings = false, expand = false) {
@@ -443,6 +449,7 @@ function createMainWindow() {
     mainWindow.hide();
   });
   mainWindow.on('show', applyAlwaysOnTop);
+  mainWindow.on('hide', () => { petWindowDrag = null; });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
 }
@@ -467,9 +474,11 @@ function updateTrayMenu() {
   if (!tray || !store) return;
   const plan = serializedPlan();
   const consumed = Math.min(store.daily.consumedMl, plan.targetMl);
-  tray.setToolTip(`水滴搭子 · ${consumed}/${plan.targetMl} mL`);
+  const completedCups = Math.min(plan.cupCount, Math.floor(consumed / plan.cupMl));
+  tray.setToolTip(`水滴搭子 · ${completedCups}/${plan.cupCount} 杯 · ${consumed}/${plan.targetMl} mL`);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `今日 ${consumed}/${plan.targetMl} mL`, enabled: false },
+    { label: `杯数 ${completedCups}/${plan.cupCount} 杯`, enabled: false },
     { label: '喝了一杯', click: recordDrink },
     { label: '撤销上一杯', click: undoDrink, enabled: consumed > 0 },
     { type: 'separator' },
@@ -672,8 +681,8 @@ function registerIpc() {
     if (action === 'expand') showMainWindow(false, true);
     return viewModel();
   });
-  ipcMain.on('water-buddy:move-window', (_event, movement) => {
-    moveMainWindow(Number(movement?.deltaX), Number(movement?.deltaY));
+  ipcMain.on('water-buddy:move-window', (_event, phase) => {
+    moveMainWindow(phase);
   });
   ipcMain.on('water-buddy:pet-peek', (_event, open) => {
     setPetPeek(open);
